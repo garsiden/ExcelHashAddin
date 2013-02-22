@@ -1,0 +1,12 @@
+
+LIBRARY hashkeys.dll
+
+EXPORTS
+	xlAutoOpen
+	xlAutoClose
+	xlAutoRegister12
+	xlAutoAdd
+	xlAutoRemove
+	xlAddInManagerInfo12
+	Func1
+	JenkinsHashKey
