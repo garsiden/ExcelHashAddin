@@ -1,18 +1,17 @@
 
-#define WIN32_DEFAULT_LIBS
+//#define WIN32_DEFAULT_LIBS
 #include <windows.h>
 #include <stdlib.h>
 #include <wchar.h>
 #include <wctype.h>
 #include <xlcall.h>
-#include "hashkeys.h"
 #include <stddef.h>
 #include <stdint.h>
+#include "hashkeys.h"
 
-LPXLOPER12 TempStr12(const XCHAR* lpstr);
-LPXLOPER12 TempInt12(int i);
+int lpwstricmp(LPWSTR s, LPWSTR t);
+LPXLOPER12 byte_str12(const XCHAR* lpstr);
 uint32_t jenkins(char *key, size_t len);
-
 //
 // Syntax of the Register Command:
 //      REGISTER(module_text, procedure, type_text, function_text, 
@@ -57,7 +56,7 @@ static LPWSTR g_rgWorksheetFuncs
 		L"My Add-In",                      		// category
 		L"",                                    // shortcut_text
 		L"",                                    // help_topic
-		L"Jenkins one-at-atime hash key",   // function_help
+		L"Jenkins one-at-atime hash key",   	// function_help
 		L"Argument ignored"                     // argument_help1
 	}	
 };
@@ -97,13 +96,14 @@ static LPWSTR g_rgWorksheetFuncs
 //       - return 1 if successful, or return 0 if your XLL cannot be opened.
 ///***************************************************************************
 
-__declspec(dllexport) int WINAPI xlAutoOpen(void)
+__declspec(dllexport)
+	int WINAPI xlAutoOpen(void)
 {
 
-	static XLOPER12 xDLL;	  // name of this DLL //
-	int i;			   		  // Loop indices //
+	XLOPER12 xDLL;	// name of this DLL //
+	int i;	// Loop indices //
 	int j;
-	LPXLOPER12 xRegArgs [g_rgWorksheetFuncsCols];
+	LPXLOPER12 xRegArgs[g_rgWorksheetFuncsCols];
 
 	//
 	// In the following block of code the name of the XLL is obtained by
@@ -113,7 +113,7 @@ __declspec(dllexport) int WINAPI xlAutoOpen(void)
 	// table registering each function in the table using xlfRegister. 
 	// Functions must be registered before you can add a menu item.
 	// xRegArgs[4]
-	
+
 	Excel12(xlGetName, &xDLL, 0);
 
 	XLOPER12 xType;
@@ -121,28 +121,26 @@ __declspec(dllexport) int WINAPI xlAutoOpen(void)
 	xType.xltype = xltypeInt;
 	xType.val.w = 2;
 
-	for (i=0; i<g_rgWorksheetFuncsRows; i++)
+	for (i = 0; i < g_rgWorksheetFuncsRows; i++)
 	{
-		for (j = 0; j < g_rgWorksheetFuncsCols; j++) {
-			xRegArgs[j] = (LPXLOPER12) TempStr12(g_rgWorksheetFuncs[i][j]);
+		for (j = 0; j < g_rgWorksheetFuncsCols; j++)
+		{
+			xRegArgs[j] = (LPXLOPER12)byte_str12(g_rgWorksheetFuncs[i][j]);
 		}
 
-		Excel12(xlfRegister, 0, 1+ g_rgWorksheetFuncsCols,
-			(LPXLOPER12) &xDLL,
-			xRegArgs[0], xRegArgs[1], xRegArgs[2], xRegArgs[3], &xType,
-			xRegArgs[5], xRegArgs[6], xRegArgs[7], xRegArgs[8], xRegArgs[9]);
+		Excel12(xlfRegister, 0, 1 + g_rgWorksheetFuncsCols, (LPXLOPER12) & xDLL, xRegArgs[0], xRegArgs[1], xRegArgs[2], xRegArgs[3], &xType, xRegArgs[5], xRegArgs[6], xRegArgs[7], xRegArgs[8], xRegArgs[9]);
 
-		for (j = 0; j < g_rgWorksheetFuncsCols; j++) {
-			free (xRegArgs[j]);
+		for (j = 0; j < g_rgWorksheetFuncsCols; j++)
+		{
+			free(xRegArgs[j]);
 		}
 	}
 
 	// Free the XLL filename //
-	Excel12(xlFree, 0, 1, (LPXLOPER12) &xDLL);
+	Excel12(xlFree, 0, 1, (LPXLOPER12) & xDLL);
 
 	return 1;
 }
-
 
 ///***************************************************************************
 // xlAutoClose()
@@ -157,9 +155,9 @@ __declspec(dllexport) int WINAPI xlAutoOpen(void)
 //
 //      xlAutoClose is called by the Add-in Manager when you remove this XLL from
 //      the list of loaded add-ins. The Add-in Manager first calls xlAutoRemove,
-//      then calls UNREGISTER("GENERIC.XLL"), which in turn calls xlAutoClose.
+//      then calls UNREGISTER("HASHKEYS.XLL"), which in turn calls xlAutoClose.
 // 
-//      xlAutoClose is called by GENERIC.XLL by the function fExit. This function
+//      xlAutoClose is called by HASHKEYS.XLL by the function fExit. This function
 //      is called when you exit Generic.
 // 
 //      xlAutoClose should:
@@ -180,7 +178,8 @@ __declspec(dllexport) int WINAPI xlAutoOpen(void)
 //
 ///***************************************************************************
 
-__declspec(dllexport) int WINAPI xlAutoClose(void)
+__declspec(dllexport)
+	int WINAPI xlAutoClose(void)
 {
 	int i;
 	LPXLOPER12 def_name;
@@ -198,15 +197,15 @@ __declspec(dllexport) int WINAPI xlAutoClose(void)
 	// fixed in a future version.
 	//
 
-	for (i = 0; i < g_rgWorksheetFuncsRows; i++) {
-		def_name = TempStr12(g_rgWorksheetFuncs[i][2]);
+	for (i = 0; i < g_rgWorksheetFuncsRows; i++)
+	{
+		def_name = byte_str12(g_rgWorksheetFuncs[i][2]);
 		Excel12(xlfSetName, 0, 1, def_name);
 		free(def_name);
 	}
 
 	return 1;
 }
-
 
 ///***************************************************************************
 // lpwstricmp()
@@ -242,12 +241,12 @@ int lpwstricmp(LPWSTR s, LPWSTR t)
 
 	for (i = 1; i <= s[0]; i++)
 	{
-		if (towlower(s[i-1]) != towlower(t[i]))
+		if (towlower(s[i - 1]) != towlower(t[i]))
 			return 1;
-	}										  
+	}
+
 	return 0;
 }
-
 
 ///***************************************************************************
 // xlAutoRegister12()
@@ -279,9 +278,11 @@ int lpwstricmp(LPWSTR s, LPWSTR t)
 //                          registered.
 ///***************************************************************************
 
-__declspec(dllexport) LPXLOPER12 WINAPI xlAutoRegister12(LPXLOPER12 pxName)
+__declspec(dllexport)
+	LPXLOPER12 WINAPI xlAutoRegister12(LPXLOPER12 pxName)
 {
-	static XLOPER12 xDLL, xRegId;
+	static XLOPER12 xRegId;
+	XLOPER12 xDLL;
 	int i;
 	int j;
 
@@ -299,35 +300,33 @@ __declspec(dllexport) LPXLOPER12 WINAPI xlAutoRegister12(LPXLOPER12 pxName)
 	xRegId.xltype = xltypeErr;
 	xRegId.val.err = xlerrValue;
 
-
 	XLOPER12 xType;
 
 	xType.xltype = xltypeInt;
-	xType.val.w = 1;
+	xType.val.w = 2;
 
-	for (i=0; i<g_rgWorksheetFuncsRows; i++)
+	for (i = 0; i < g_rgWorksheetFuncsRows; i++)
 	{
 		if (!lpwstricmp(g_rgWorksheetFuncs[i][0], pxName->val.str))
 		{
-			for (j = 0; j < g_rgWorksheetFuncsCols; j++) {
-				xRegArgs[j] = TempStr12(g_rgWorksheetFuncs[i][j]);
+			for (j = 0; j < g_rgWorksheetFuncsCols; j++)
+			{
+				xRegArgs[j] = byte_str12(g_rgWorksheetFuncs[i][j]);
 			}
-			Excel12(xlfRegister, 0, 1+ g_rgWorksheetFuncsCols,
-				(LPXLOPER12) &xDLL,
-				xRegArgs[0], xRegArgs[1], xRegArgs[2], xRegArgs[3], &xType,
-				xRegArgs[5], xRegArgs[6], xRegArgs[7], xRegArgs[8], xRegArgs[9]);
+			Excel12(xlfRegister, 0, 1 + g_rgWorksheetFuncsCols, (LPXLOPER12) & xDLL, xRegArgs[0], xRegArgs[1], xRegArgs[2], xRegArgs[3], &xType, xRegArgs[5], xRegArgs[6], xRegArgs[7], xRegArgs[8], xRegArgs[9]);
 
-			for (j = 0; j < g_rgWorksheetFuncsCols; j++) {
-				free (xRegArgs[j]);
+			for (j = 0; j < g_rgWorksheetFuncsCols; j++)
+			{
+				free(xRegArgs[j]);
 			}
 			/// Free oper returned by xl //
-			Excel12(xlFree, 0, 1, (LPXLOPER12) &xDLL);
+			Excel12(xlFree, 0, 1, (LPXLOPER12) & xDLL);
 
-			return(LPXLOPER12) &xRegId;
+			return (LPXLOPER12) & xRegId;
 		}
 	}
 
-	return(LPXLOPER12) &xRegId;
+	return (LPXLOPER12) & xRegId;
 }
 
 ///***************************************************************************
@@ -341,21 +340,22 @@ __declspec(dllexport) LPXLOPER12 WINAPI xlAutoRegister12(LPXLOPER12 pxName)
 //
 ///***************************************************************************
 
-__declspec(dllexport) int WINAPI xlAutoAdd(void)
+__declspec(dllexport)
+	int WINAPI xlAutoAdd(void)
 {
 	XCHAR szBuf[255];
 	LPXLOPER12 msg;
-	LPXLOPER12 xInt;
+	XLOPER12 xInt;
 
-	wsprintfW((LPWSTR)szBuf, L"Thank you for adding ExcelAddin.XLL\n "
-			 L"built on %hs at %hs", __DATE__, __TIME__);
+	wsprintfW((LPWSTR)szBuf, L"Thank you for adding ExcelAddin.XLL\n " L"built on %hs at %hs", __DATE__, __TIME__);
 
 	// Display a dialog box indicating that the XLL was successfully added //
-	msg = TempStr12(szBuf);
-	xInt = TempInt12(2);
-	Excel12(xlcAlert, 0, 2, msg, xInt);
+	msg = byte_str12(szBuf);
+	xInt.xltype = xltypeInt;
+	xInt.val.w = 2;
+
+	Excel12(xlcAlert, 0, 2, msg, &xInt);
 	free(msg);
-	free(xInt);
 
 	return 1;
 }
@@ -367,7 +367,7 @@ __declspec(dllexport) int WINAPI xlAutoAdd(void)
 //
 //      This function is called by the Add-in Manager only. When you remove
 //      an XLL from the list of active add-ins, the Add-in Manager calls
-//      xlAutoRemove() and then UNREGISTER("GENERIC.XLL").
+//      xlAutoRemove() and then UNREGISTER("HASHKEYS.XLL").
 //   
 //      You can use this function to perform any special tasks that need to be
 //      performed when you remove the XLL from the Add-in Manager's list
@@ -376,18 +376,20 @@ __declspec(dllexport) int WINAPI xlAutoAdd(void)
 //
 ///***************************************************************************
 
-__declspec(dllexport) int WINAPI xlAutoRemove(void)
+__declspec(dllexport)
+	int WINAPI xlAutoRemove(void)
 {
 	LPXLOPER12 msg;
 	XLOPER12 xInt;
 
-	msg = TempStr12(L"Thank you for removing ExcelAddin.XLL!");
+	msg = byte_str12(L"Thank you for removing ExcelAddin.XLL!");
 	xInt.xltype = xltypeInt;
 	xInt.val.w = 2;
 
 	// Show a dialog box indicating that the XLL was successfully removed //
 	Excel12(xlcAlert, 0, 2, msg, &xInt);
 	free(msg);
+
 	return 1;
 }
 
@@ -416,7 +418,8 @@ __declspec(dllexport) int WINAPI xlAutoRemove(void)
 //
 ///***************************************************************************
 
-__declspec(dllexport) LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
+__declspec(dllexport)
+	LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
 {
 	static XLOPER12 xInfo, xIntAction, xIntType;
 
@@ -429,7 +432,7 @@ __declspec(dllexport) LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
 
 	xIntType.xltype = xltypeInt;
 	xIntType.val.w = xltypeInt;
-	Excel12(xlCoerce, &xIntAction, 2, xAction, (LPXLOPER12)&xIntType);
+	Excel12(xlCoerce, &xIntAction, 2, xAction, (LPXLOPER12) & xIntType);
 
 	if (xIntAction.val.w == 1)
 	{
@@ -444,7 +447,7 @@ __declspec(dllexport) LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
 
 	//Word of caution - returning static XLOPER12s/XLOPER12s is not thread safe
 	//for UDFs declared as thread safe, use alternate memory allocation mechanisms
-	return(LPXLOPER12) &xInfo;
+	return (LPXLOPER12) & xInfo;
 }
 
 ///***************************************************************************
@@ -467,7 +470,7 @@ __declspec(dllexport) LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
 // History:  Date       Author        Reason
 ///***************************************************************************
 
-LPXLOPER12 WINAPI Func1 (LPXLOPER12 x)
+LPXLOPER12 WINAPI Func1(LPXLOPER12 x)
 {
 	static XLOPER12 xResult;
 
@@ -481,80 +484,7 @@ LPXLOPER12 WINAPI Func1 (LPXLOPER12 x)
 
 	//Word of caution - returning static XLOPER12s/XLOPER12s is not thread safe
 	//for UDFs declared as thread safe, use alternate memory allocation mechanisms
-    return(LPXLOPER12) &xResult;
-}
-
-///***************************************************************************
-// FuncFib()
-//
-// Purpose:
-//
-//      A sample function that computes the nth Fibonacci number.
-//      Features a call to several wrapper functions.
-//
-// Parameters:
-//
-//      LPXLOPER12 n    int to compute to
-//
-// Returns: 
-//
-//      LPXLOPER12      nth Fibonacci number
-//
-// Comments:
-//
-// History:  Date       Author        Reason
-///***************************************************************************
-
-__declspec(dllexport) LPXLOPER12 WINAPI FuncFib (LPXLOPER12 n)
-{
-	static XLOPER12 xResult;
-	XLOPER12 xlt;
-	int val, max, error = -1;
-	int fib[2] = {1,1};
-	switch (n->xltype)
-	{
-	case xltypeNum:
-		max = (int)n->val.num;
-		if (max < 0)
-			error = xlerrValue;
-		for (val = 3; val <= max; val++)
-		{
-			fib[val%2] += fib[(val+1)%2];
-		}
-		xResult.xltype = xltypeNum;
-		xResult.val.num = fib[(val+1)%2];
-		break;
-	case xltypeSRef:
-		error = Excel12(xlCoerce, &xlt, 2, n, TempInt12(xltypeInt));
-		if (!error)
-		{
-			error = -1;
-			max = xlt.val.w;
-			if (max < 0)
-				error = xlerrValue;
-			for (val = 3; val <= max; val++)
-			{
-				fib[val%2] += fib[(val+1)%2];
-			}
-			xResult.xltype = xltypeNum;
-			xResult.val.num = fib[(val+1)%2];
-		}
-		Excel12(xlFree, 0, 1, &xlt);
-		break;
-	default:
-		error = xlerrValue;
-		break;
-	}
-
-	if ( error != - 1 )
-	{
-		xResult.xltype = xltypeErr;
-		xResult.val.err = error;
-	}
-
-	//Word of caution - returning static XLOPER12s/XLOPER12s is not thread safe
-	//for UDFs declared as thread safe, use alternate memory allocation mechanisms
-    return(LPXLOPER12) &xResult;
+	return (LPXLOPER12) & xResult;
 }
 
 ///***************************************************************************
@@ -562,19 +492,20 @@ __declspec(dllexport) LPXLOPER12 WINAPI FuncFib (LPXLOPER12 n)
 //
 // Purpose:
 //
-//      This is a user-initiated routine to exit GENERIC.XLL You may be tempted to
-//      simply call UNREGISTER("GENERIC.XLL") in this function. Don't do it! It
+//      This is a user-initiated routine to exit HASHKEYS.XLL You may be tempted to
+//      simply call UNREGISTER("HASHKEYS.XLL") in this function. Don't do it! It
 //      will have the effect of forcefully unregistering all of the functions in
 //      this DLL, even if they are registered somewhere else! Instead, unregister
 //      the functions one at a time.
 //
 ///***************************************************************************
 
-__declspec(dllexport) int WINAPI fExit(void)
+__declspec(dllexport)
+	int WINAPI fExit(void)
 {
-	XLOPER12  xDLL,    // The name of this DLL //
-	xFunc,             // The name of the function //
-	xRegId;            // The registration ID //
+	XLOPER12 xDLL,	// The name of this DLL //
+	         xFunc,	// The name of the function //
+	         xRegId;	// The registration ID //
 	int i;
 
 	//
@@ -592,91 +523,68 @@ __declspec(dllexport) int WINAPI fExit(void)
 	for (i = 0; i < g_rgWorksheetFuncsRows; i++)
 	{
 		xFunc.val.str = (LPWSTR) (g_rgWorksheetFuncs[i][0]);
-		Excel12(xlfRegisterId, &xRegId, 2, (LPXLOPER12)&xDLL,(LPXLOPER12)&xFunc);
-		Excel12(xlfUnregister, 0, 1, (LPXLOPER12)&xRegId);
+		Excel12(xlfRegisterId, &xRegId, 2, (LPXLOPER12) & xDLL, (LPXLOPER12) & xFunc);
+		Excel12(xlfUnregister, 0, 1, (LPXLOPER12) & xRegId);
 	}
 
-	Excel12(xlFree, 0, 1, (LPXLOPER12) &xDLL);
+	Excel12(xlFree, 0, 1, (LPXLOPER12) & xDLL);
 
 	return xlAutoClose();
 }
 
-LPXLOPER12 TempStr12(const XCHAR* lpstr)
+LPXLOPER12 byte_str12(const XCHAR *lpstr)
 {
 	LPXLOPER12 lpx;
-	XCHAR* lps;
+	XCHAR *lps;
 	int len;
 
+	// get number of wchar values excluding null terminator
 	len = lstrlenW(lpstr);
 
-	lpx = (LPXLOPER12) malloc(sizeof(XLOPER12) + (len+1)*2);
+	lpx = (LPXLOPER12)malloc(sizeof(XLOPER12) + (len + 1) * 2);
 
 	if (!lpx)
 	{
 		return 0;
 	}
 
-	lps = (XCHAR*)((CHAR*)lpx + sizeof(XLOPER12));
+	lps = (XCHAR *) ((CHAR *)lpx + sizeof(XLOPER12));
 
 	lps[0] = (BYTE)len;
-	//can't wcscpy_s because of removal of null-termination
-	wmemcpy_s( lps+1, len+1, lpstr, len);
+
+	// can't wcscpy_s because of removal of null-termination
+	wmemcpy_s(lps + 1, len + 1, lpstr, len);
 	lpx->xltype = xltypeStr;
 	lpx->val.str = lps;
 
 	return lpx;
 }
 
-LPXLOPER12 TempInt12(int i)
+signed long int WINAPI JenkinsHashKey(char *key)
 {
-	LPXLOPER12 lpx;
-
-	lpx = (LPXLOPER12) malloc(sizeof(XLOPER12));
-
-	if (!lpx)
-	{
-		return 0;
-	}
-
-	lpx->xltype = xltypeInt;
-	lpx->val.w = i;
-
-	return lpx;
-}
-
-signed long int WINAPI JenkinsHashKey (char *key)
-{
-	//static XLOPER12 xResult;
-
-	//xResult.xltype = xltypeStr;
-	//xResult.val.str = L"\005Func1";
-
-	//Word of caution - returning static XLOPER12s/XLOPER12s is not thread safe
-	//for UDFs declared as thread safe, use alternate memory allocation mechanisms
-    //return(LPXLOPER12) &xResult;
-
 	size_t len;
 
 	len = strlen(key);
 	signed long int val;
 
-	val = (signed long int)jenkins(key,len );
+	val = (signed long int)jenkins(key, len);
 
 	return val;
 }
 
 uint32_t jenkins(char *key, size_t len)
 {
-    uint32_t hash, i;
-    for(hash = i = 0; i < len; ++i)
-    {
-        hash += key[i];
-        hash += (hash << 10);
-        hash ^= (hash >> 6);
-    }
-    hash += (hash << 3);
-    hash ^= (hash >> 11);
-    hash += (hash << 15);
+	uint32_t hash, i;
 
-    return hash;
+	for (hash = i = 0; i < len; ++i)
+	{
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+
+	return hash;
 }

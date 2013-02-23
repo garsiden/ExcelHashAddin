@@ -1,5 +1,5 @@
 
-LIBRARY hashkeys.dll
+LIBRARY hashkeys.xll
 
 EXPORTS
 	xlAutoOpen
