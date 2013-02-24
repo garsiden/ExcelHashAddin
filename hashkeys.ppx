@@ -12,10 +12,10 @@
 	</category>
 	<category name="hashkeys.def">
 		<category name="Window">
-			<property name="Left" type="integer">176</property>
-			<property name="Top" type="integer">176</property>
-			<property name="Right" type="integer">841</property>
-			<property name="Bottom" type="integer">652</property>
+			<property name="Left" type="integer">22</property>
+			<property name="Top" type="integer">22</property>
+			<property name="Right" type="integer">916</property>
+			<property name="Bottom" type="integer">498</property>
 			<property name="Maximized" type="integer">0</property>
 			<property name="Active" type="integer">0</property>
 		</category>
@@ -24,18 +24,19 @@
 		<category name="Window">
 			<property name="Left" type="integer">-4</property>
 			<property name="Top" type="integer">-23</property>
-			<property name="Right" type="integer">891</property>
+			<property name="Right" type="integer">892</property>
 			<property name="Bottom" type="integer">639</property>
 			<property name="Maximized" type="integer">1</property>
 			<property name="Active" type="integer">1</property>
 		</category>
 	</category>
-	<category name="xlcall.c">
+	<category name="xlcall.c" />
+	<category name="jenkins.h">
 		<category name="Window">
-			<property name="Left" type="integer">88</property>
-			<property name="Top" type="integer">88</property>
-			<property name="Right" type="integer">753</property>
-			<property name="Bottom" type="integer">564</property>
+			<property name="Left" type="integer">154</property>
+			<property name="Top" type="integer">154</property>
+			<property name="Right" type="integer">820</property>
+			<property name="Bottom" type="integer">630</property>
 			<property name="Maximized" type="integer">0</property>
 			<property name="Active" type="integer">0</property>
 		</category>

@@ -27,9 +27,9 @@ LIB = $(PellesCDir)\Lib\Win;$(PellesCDir)\Lib;lib#
 # Build hashkeys.dll.
 # 
 hashkeys.dll: \
+	hashkeys.def \
 	output\hashkeys.obj \
-	output\xlcall.obj \
-	hashkeys.def
+	output\xlcall.obj
 	$(LINK) $(LINKFLAGS) -out:"$@" $**
 
 # 
@@ -44,7 +44,10 @@ output\xlcall.obj: \
 # 
 output\hashkeys.obj: \
 	hashkeys.c \
-	hashkeys.h
+	hashkeys.h \
+	jenkins.h
 	$(CC) $(CCFLAGS) "$!" -Fo"$@"
+
+.EXCLUDEDFILES:
 
 .SILENT:
