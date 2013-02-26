@@ -15,10 +15,10 @@ AS = poasm.exe#
 RC = porc.exe#
 LINK = polink.exe#
 SIGN = posign.exe#
-CCFLAGS = -std:C99 -Tx86-coff -Ot -Ob1 -fp:precise -W1 -Gz -Ze #
+CCFLAGS = -std:C99 -Tx86-coff -Ot -Ob1 -fp:precise -W1 -Gz -Ze -Gn #
 ASFLAGS = -AIA32 -Gz #
 RCFLAGS = #
-LINKFLAGS = -subsystem:windows -machine:x86 /DEF:hashkeys.def kernel32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib advapi32.lib delayimp.lib xlcall32.lib /OUT:hashkeys.xll#
+LINKFLAGS = -subsystem:windows -machine:x86 kernel32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib advapi32.lib delayimp.lib xlcall32.lib -dll#
 SIGNFLAGS = -location:CU -store:MY -timeurl:http://timestamp.verisign.com/scripts/timstamp.dll -errkill#
 INCLUDE = $(PellesCDir)\Include\Win;$(PellesCDir)\Include;include#
 LIB = $(PellesCDir)\Lib\Win;$(PellesCDir)\Lib;lib#
@@ -27,7 +27,6 @@ LIB = $(PellesCDir)\Lib\Win;$(PellesCDir)\Lib;lib#
 # Build hashkeys.dll.
 # 
 hashkeys.dll: \
-	hashkeys.def \
 	output\hashkeys.obj \
 	output\xlcall.obj
 	$(LINK) $(LINKFLAGS) -out:"$@" $**
@@ -47,7 +46,5 @@ output\hashkeys.obj: \
 	hashkeys.h \
 	jenkins.h
 	$(CC) $(CCFLAGS) "$!" -Fo"$@"
-
-.EXCLUDEDFILES:
 
 .SILENT:

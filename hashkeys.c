@@ -10,7 +10,9 @@
 
 // function definitions
 int lpwstricmp(LPWSTR s, LPWSTR t);
-LPXLOPER12 byte_str12(const XCHAR* lpstr);
+LPXLOPER12 xlstring12(const XCHAR* lpstr);
+XCHAR *byte_str(const XCHAR *);
+XCHAR *byte_str_fromcs(const char *s);
 uint32_t jenkins(char *key, size_t len);
 uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
 
@@ -38,6 +40,8 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
 #define TYPE_FUN 1
 #define FUNCTION_TEXT_COL 2
 #define FUNCTION_PROC_COL 0
+#define ADDIN_NAME L"Hash Keys XLL Add in"
+
 
 static LPWSTR functions[FUNCTION_ROWS][FUNCTION_COLS] = {
      {L"JenkinsHashKey",                        // Procedure
@@ -63,7 +67,7 @@ static LPWSTR functions[FUNCTION_ROWS][FUNCTION_COLS] = {
       L"",                                      // help_topic
       L"Jenkins Little Endian hash",            // function_help
       L"is the text string to hash",            // argument_help1
-      L"is an initial integer key value. "        // argument_help2
+      L"is an initial integer key value. "      // argument_help2
      }
 };
 
@@ -126,7 +130,7 @@ int WINAPI xlAutoOpen(void)
 
      for (i = 0; i < FUNCTION_ROWS; i++) {
           for (j = 0; j < FUNCTION_COLS; j++) {
-               pxRegArgs[j] = byte_str12(functions[i][j]);
+               pxRegArgs[j] = xlstring12(functions[i][j]);
           }
 
           Excel12(xlfRegister, 0, 1 + FUNCTION_COLS, (LPXLOPER12) &xDLL,
@@ -201,7 +205,7 @@ int WINAPI xlAutoClose(void)
      //
 
      for (i = 0; i < FUNCTION_ROWS; i++) {
-          pxDefName = byte_str12(functions[i][FUNCTION_TEXT_COL]);
+          pxDefName = xlstring12(functions[i][FUNCTION_TEXT_COL]);
           Excel12(xlfSetName, 0, 1, pxDefName);
           free(pxDefName);
      }
@@ -308,7 +312,7 @@ LPXLOPER12 WINAPI xlAutoRegister12(LPXLOPER12 pxName)
      for (i = 0; i < FUNCTION_ROWS; i++) {
           if (!lpwstricmp(functions[i][0], pxName->val.str)) {
                for (j = 0; j < FUNCTION_COLS; j++) {
-                    pxRegArgs[j] = byte_str12(functions[i][j]);
+                    pxRegArgs[j] = xlstring12(functions[i][j]);
                }
                Excel12(xlfRegister, 0, 1 + FUNCTION_COLS,
                        (LPXLOPER12) &xDLL, pxRegArgs[0], pxRegArgs[1],
@@ -348,11 +352,11 @@ int WINAPI xlAutoAdd(void)
      XLOPER12 xInt;
 
      wsprintfW((LPWSTR)szBuf,
-               L"Thank you for adding Hash Keys XLL Add in\n"  L"built on %hs at %hs",
+               L"Thank you for adding " ADDIN_NAME L"\nbuilt on %hs at %hs",
                __DATE__, __TIME__);
 
      // Display a dialog box indicating that the XLL was successfully added
-     pxMsg = byte_str12(szBuf);
+     pxMsg = xlstring12(szBuf);
      xInt.xltype = xltypeInt;
      xInt.val.w = 2;
 
@@ -384,7 +388,7 @@ int WINAPI xlAutoRemove(void)
      LPXLOPER12 pxMsg;
      XLOPER12 xInt;
 
-     pxMsg = byte_str12(L"Thank you for removing Hash keys XLL Add in");
+     pxMsg = xlstring12(L"Thank you for removing " ADDIN_NAME);
      xInt.xltype = xltypeInt;
      xInt.val.w = 2;
 
@@ -439,8 +443,8 @@ LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
      Excel12(xlCoerce, &xIntAction, 2, xAction, (LPXLOPER12) &xIntType);
 
      if (xIntAction.val.w == 1) {
-          xInfo.xltype = xltypeStr;
-          xInfo.val.str = L"\024Hash Keys XLL Add in";
+          xInfo.xltype = xltypeStr | xlbitDLLFree;
+          xInfo.val.str = byte_str(ADDIN_NAME);
      } else {
           xInfo.xltype = xltypeErr;
           xInfo.val.err = xlerrValue;
@@ -451,6 +455,15 @@ LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
      //mechanisms
      return (LPXLOPER12) & xInfo;
 }
+
+__declspec(dllexport)
+void WINAPI xlAutoFree12(LPXLOPER12 pxFree)
+{
+    if(pxFree->xltype & xltypeStr) {
+        free(pxFree->val.str);
+    }
+}
+
 
 ///***************************************************************************
 // fExit()
@@ -483,7 +496,7 @@ int WINAPI fExit(void)
      Excel12(xlGetName, &xDLL, 0);
 
      for (i = 0; i < FUNCTION_ROWS; i++) {
-          pxFunc = byte_str12(functions[i][FUNCTION_PROC_COL]);
+          pxFunc = xlstring12(functions[i][FUNCTION_PROC_COL]);
           Excel12(xlfRegisterId, &xRegId, 2, (LPXLOPER12) &xDLL, pxFunc);
           free(pxFunc);
           Excel12(xlfUnregister, 0, 1, (LPXLOPER12) &xRegId);
@@ -494,14 +507,45 @@ int WINAPI fExit(void)
      return xlAutoClose();
 }
 
-LPXLOPER12 byte_str12(const XCHAR *lpstr)
+XCHAR *byte_str(const XCHAR *lpstr)
+{
+    XCHAR *lps;
+    size_t len;
+
+    len = wcslen(lpstr);
+    lps = (XCHAR *)malloc((len + 1) * 2);
+
+    if (!lps) {
+        return 0;
+    }
+
+    lps[0] = (BYTE)len;
+    wmemcpy(lps + 1, lpstr, len);
+
+    return lps;
+}
+
+XCHAR *byte_str_fromcs(const char *s)
+{
+    size_t len;
+    XCHAR *lps;
+
+    len = strlen(s);
+    lps = (XCHAR *)malloc((len + 1) * 2);
+    lps[0] = (BYTE)len;
+    mbstowcs(lps + 1, s,len);
+
+    return lps;
+}
+
+LPXLOPER12 xlstring12(const XCHAR *lpstr)
 {
      LPXLOPER12 lpx;
      XCHAR *lps;
      int len;
 
      // get number of wchar values excluding null terminator
-     len = lstrlenW(lpstr);
+     len = wcslen(lpstr);
 
      lpx = (LPXLOPER12)malloc(sizeof(XLOPER12) + (len + 1) * 2);
 
@@ -514,7 +558,7 @@ LPXLOPER12 byte_str12(const XCHAR *lpstr)
      lps[0] = (BYTE)len;
 
      // can't wcscpy_s because of removal of null-termination
-     wmemcpy_s(lps + 1, len + 1, lpstr, len);
+     wmemcpy(lps + 1, lpstr, len);
      lpx->xltype = xltypeStr;
      lpx->val.str = lps;
 
@@ -549,7 +593,8 @@ uint32_t jenkins(char *key, size_t len)
      return hash;
 }
 
-signed long int WINAPI HashKeyLittleEndian( char *key, signed long int initval)
+signed long int WINAPI
+HashKeyLittleEndian( char *key, signed long int initval)
 {
      size_t len;
 
