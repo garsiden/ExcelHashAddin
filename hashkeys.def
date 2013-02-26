@@ -8,6 +8,5 @@ EXPORTS
 	xlAutoAdd
 	xlAutoRemove
 	xlAddInManagerInfo12
-	Func1
 	JenkinsHashKey
-    HashKeyLittle
+    HashKeyLittleEndian

@@ -8,6 +8,7 @@
 #include "hashkeys.h"
 #include "jenkins.h"
 
+// function definitions
 int lpwstricmp(LPWSTR s, LPWSTR t);
 LPXLOPER12 byte_str12(const XCHAR* lpstr);
 uint32_t jenkins(char *key, size_t len);
@@ -31,22 +32,14 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
 // FUNCTION_ROWS define the number of rows in the table. The
 // FUNCTION_COLS represents the number of columns in the table.
 //
-#define FUNCTION_ROWS 3
-#define FUNCTION_COLS 10
+#define FUNCTION_ROWS 2
+#define FUNCTION_COLS 11
+#define TYPE_CMD 2
+#define TYPE_FUN 1
+#define FUNCTION_TEXT_COL 2
+#define FUNCTION_PROC_COL 0
 
 static LPWSTR functions[FUNCTION_ROWS][FUNCTION_COLS] = {
-     {L"Func1",					                // Procedure
-      L"UU",				                    // type_text
-      L"Func1",			                        // function_text
-      L"Text",                                  // argument_text
-      L"1",				                        // macro_type
-      L"My Add-In",		                        // category
-      L"",				                        // shortcut_text
-      L"",				                        // help_topic
-      L"Always returns the string 'Func1'",     // function_help
-      L"Argument ignored"	                    // argument_help1
-     }
-     ,
      {L"JenkinsHashKey",                        // Procedure
       L"JF",                                    // char *, signed long int
       L"JenkinsHashKey",                        // function_text
@@ -56,21 +49,21 @@ static LPWSTR functions[FUNCTION_ROWS][FUNCTION_COLS] = {
       L"",                                      // shortcut_text
       L"",                                      // help_topic
       L"Jenkins one-at-a-time hash",            // function_help
-      L"Argument ignored"                       // argument_help1
+      L"is the text string to hash",             // argument_help1
+      L""                                       // argument_help2
      }
-
      ,
-
-     {L"HashKeyLittle",                        // Procedure
-      L"JFN",                                    // char *, signed long int
-      L"HashKeyLittle",                        // function_text
+     {L"HashKeyLittleEndian",                   // Procedure
+      L"JFN",                                   // char *, signed long int
+      L"HashKeyLittleEndian",                   // function_text
       L"text,init_val",                         // argument_text
       L"1",                                     // macro_type (2)
       L"Hash Keys",                             // category
       L"",                                      // shortcut_text
       L"",                                      // help_topic
       L"Jenkins Little Endian hash",            // function_help
-      L"Argument ignored"                       // argument_help1
+      L"is the text string to hash",            // argument_help1
+      L"is an initial integer key value. "        // argument_help2
      }
 };
 
@@ -112,38 +105,37 @@ static LPWSTR functions[FUNCTION_ROWS][FUNCTION_COLS] = {
 __declspec(dllexport)
 int WINAPI xlAutoOpen(void)
 {
-     XLOPER12 xDLL;				// name of this DLL //
-     int i;						// Loop indices //
+     XLOPER12 xDLL;				// name of this DLL
+     int i;						// Loop indices
      int j;
-     LPXLOPER12 xRegArgs[FUNCTION_COLS];
+     LPXLOPER12 pxRegArgs[FUNCTION_COLS];
+     XLOPER12 xType;
 
      //
      // In the following block of code the name of the XLL is obtained by
      // calling xlGetName. This name is used as the first argument to the
      // REGISTER function to specify the name of the XLL. Next, the XLL loops
-     // through the functions[] table, and the g_rgCommandFuncs[]
-     // table registering each function in the table using xlfRegister. 
+     // through the functions[] table, table registering each function in the
+     // table using xlfRegister. 
      // Functions must be registered before you can add a menu item.
-     // xRegArgs[4]
+     // 
 
      Excel12(xlGetName, &xDLL, 0);
-
-     XLOPER12 xType;
-
      xType.xltype = xltypeInt;
-     xType.val.w = 1;
+     xType.val.w = TYPE_FUN;
 
      for (i = 0; i < FUNCTION_ROWS; i++) {
           for (j = 0; j < FUNCTION_COLS; j++) {
-               xRegArgs[j] = (LPXLOPER12)byte_str12(functions[i][j]);
+               pxRegArgs[j] = byte_str12(functions[i][j]);
           }
 
           Excel12(xlfRegister, 0, 1 + FUNCTION_COLS, (LPXLOPER12) &xDLL,
-                  xRegArgs[0], xRegArgs[1], xRegArgs[2], xRegArgs[3], &xType,
-                  xRegArgs[5], xRegArgs[6], xRegArgs[7], xRegArgs[8], xRegArgs[9]);
+                  pxRegArgs[0], pxRegArgs[1], pxRegArgs[2], pxRegArgs[3],
+                  &xType, pxRegArgs[5], pxRegArgs[6], pxRegArgs[7],
+                  pxRegArgs[8], pxRegArgs[9], pxRegArgs[10]);
 
           for (j = 0; j < FUNCTION_COLS; j++) {
-               free(xRegArgs[j]);
+               free(pxRegArgs[j]);
           }
      }
 
@@ -168,8 +160,8 @@ int WINAPI xlAutoOpen(void)
 //      the list of loaded add-ins. The Add-in Manager first calls xlAutoRemove,
 //      then calls UNREGISTER("HASHKEYS.XLL"), which in turn calls xlAutoClose.
 // 
-//      xlAutoClose is called by HASHKEYS.XLL by the function fExit. This function
-//      is called when you exit Generic.
+//      xlAutoClose is called by HASHKEYS.XLL by the function fExit. This
+//      function is called when you exit Generic.
 // 
 //      xlAutoClose should:
 // 
@@ -181,9 +173,9 @@ int WINAPI xlAutoOpen(void)
 //         so on). Remember that registering functions may cause names to 
 //         be created.
 // 
-//      xlAutoClose does NOT have to unregister the functions that were registered
-//      in xlAutoOpen. This is done automatically by Microsoft Excel after
-//      xlAutoClose returns.
+//      xlAutoClose does NOT have to unregister the functions that were
+//      registered in xlAutoOpen. This is done automatically by Microsoft Excel
+//      after xlAutoClose returns.
 // 
 //      xlAutoClose should return 1.
 //
@@ -193,7 +185,7 @@ __declspec(dllexport)
 int WINAPI xlAutoClose(void)
 {
      int i;
-     LPXLOPER12 def_name;
+     LPXLOPER12 pxDefName;
 
      //
      // This block first deletes all names added by xlAutoOpen or
@@ -209,9 +201,9 @@ int WINAPI xlAutoClose(void)
      //
 
      for (i = 0; i < FUNCTION_ROWS; i++) {
-          def_name = byte_str12(functions[i][2]);
-          Excel12(xlfSetName, 0, 1, def_name);
-          free(def_name);
+          pxDefName = byte_str12(functions[i][FUNCTION_TEXT_COL]);
+          Excel12(xlfSetName, 0, 1, pxDefName);
+          free(pxDefName);
      }
 
      return 1;
@@ -267,9 +259,9 @@ int lpwstricmp(LPWSTR s, LPWSTR t)
 //      happens, Microsoft Excel calls xlAutoRegister12, passing the name of the
 //      function that the user tried to register. xlAutoRegister12 should use the
 //      normal REGISTER function to register the function, only this time it must
-//      specify the type_text argument. If xlAutoRegister12 does not recognize the
-//      function name, it should return a #VALUE! error. Otherwise, it should
-//      return whatever REGISTER returned.
+//      specify the type_text argument. If xlAutoRegister12 does not recognize
+//      the function name, it should return a #VALUE! error. Otherwise, it
+//      should whatever REGISTER returned.
 //
 // Parameters:
 //
@@ -292,42 +284,42 @@ LPXLOPER12 WINAPI xlAutoRegister12(LPXLOPER12 pxName)
 {
      static XLOPER12 xRegId;
      XLOPER12 xDLL;
+     XLOPER12 xType;
      int i;
      int j;
 
-     LPXLOPER12 xRegArgs[FUNCTION_COLS];
+     LPXLOPER12 pxRegArgs[FUNCTION_COLS];
      //
      // This block initializes xRegId to a #VALUE! error first. This is done in
      // case a function is not found to register. Next, the code loops through 
-     // the functions in g_rgFuncs[] and uses lpwstricmp to determine if the 
-     // current row in g_rgFuncs[] represents the function that needs to be 
+     // the functions in functions[] and uses lpwstricmp to determine if the 
+     // current row in functions[] represents the function that needs to be 
      // registered. When it finds the proper row, the function is registered 
      // and the register ID is returned to Microsoft Excel. If no matching 
      // function is found, an xRegId is returned containing a #VALUE! error.
-     // xRegArgs[4],
+     //
 
      xRegId.xltype = xltypeErr;
      xRegId.val.err = xlerrValue;
 
-     XLOPER12 xType;
-
      xType.xltype = xltypeInt;
-     xType.val.w = 1;
+     xType.val.w = TYPE_FUN;
 
      for (i = 0; i < FUNCTION_ROWS; i++) {
           if (!lpwstricmp(functions[i][0], pxName->val.str)) {
                for (j = 0; j < FUNCTION_COLS; j++) {
-                    xRegArgs[j] = byte_str12(functions[i][j]);
+                    pxRegArgs[j] = byte_str12(functions[i][j]);
                }
                Excel12(xlfRegister, 0, 1 + FUNCTION_COLS,
-                       (LPXLOPER12) &xDLL, xRegArgs[0], xRegArgs[1], xRegArgs[2],
-                       xRegArgs[3], &xType, xRegArgs[5], xRegArgs[6], xRegArgs[7],
-                       xRegArgs[8], xRegArgs[9]);
+                       (LPXLOPER12) &xDLL, pxRegArgs[0], pxRegArgs[1],
+                       pxRegArgs[2], pxRegArgs[3], &xType, pxRegArgs[5],
+                       pxRegArgs[6], pxRegArgs[7], pxRegArgs[8], pxRegArgs[9],
+                       pxRegArgs[10]);
 
                for (j = 0; j < FUNCTION_COLS; j++) {
-                    free(xRegArgs[j]);
+                    free(pxRegArgs[j]);
                }
-               /// Free oper returned by xl //
+               // Free oper returned by xl
                Excel12(xlFree, 0, 1, (LPXLOPER12) & xDLL);
 
                return (LPXLOPER12) &xRegId;
@@ -352,20 +344,20 @@ __declspec(dllexport)
 int WINAPI xlAutoAdd(void)
 {
      XCHAR szBuf[255];
-     LPXLOPER12 msg;
+     LPXLOPER12 pxMsg;
      XLOPER12 xInt;
 
      wsprintfW((LPWSTR)szBuf,
-               L"Thank you for adding ExcelAddin.XLL\n " L"built on %hs at %hs",
+               L"Thank you for adding Hash Keys XLL Add in\n"  L"built on %hs at %hs",
                __DATE__, __TIME__);
 
-     // Display a dialog box indicating that the XLL was successfully added //
-     msg = byte_str12(szBuf);
+     // Display a dialog box indicating that the XLL was successfully added
+     pxMsg = byte_str12(szBuf);
      xInt.xltype = xltypeInt;
      xInt.val.w = 2;
 
-     Excel12(xlcAlert, 0, 2, msg, &xInt);
-     free(msg);
+     Excel12(xlcAlert, 0, 2, pxMsg, &xInt);
+     free(pxMsg);
 
      return 1;
 }
@@ -389,16 +381,16 @@ int WINAPI xlAutoAdd(void)
 __declspec(dllexport)
 int WINAPI xlAutoRemove(void)
 {
-     LPXLOPER12 msg;
+     LPXLOPER12 pxMsg;
      XLOPER12 xInt;
 
-     msg = byte_str12(L"Thank you for removing ExcelAddin.XLL!");
+     pxMsg = byte_str12(L"Thank you for removing Hash keys XLL Add in");
      xInt.xltype = xltypeInt;
      xInt.val.w = 2;
 
-     // Show a dialog box indicating that the XLL was successfully removed //
-     Excel12(xlcAlert, 0, 2, msg, &xInt);
-     free(msg);
+     // Show a dialog box indicating that the XLL was successfully removed
+     Excel12(xlcAlert, 0, 2, pxMsg, &xInt);
+     free(pxMsg);
 
      return 1;
 }
@@ -431,7 +423,9 @@ int WINAPI xlAutoRemove(void)
 __declspec(dllexport)
 LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
 {
-     static XLOPER12 xInfo, xIntAction, xIntType;
+     static XLOPER12 xInfo;
+     XLOPER12 xIntAction;
+     XLOPER12 xIntType;
 
      //
      // This code coerces the passed-in value to an integer. This is how the
@@ -442,56 +436,20 @@ LPXLOPER12 WINAPI xlAddInManagerInfo12(LPXLOPER12 xAction)
 
      xIntType.xltype = xltypeInt;
      xIntType.val.w = xltypeInt;
-     Excel12(xlCoerce, &xIntAction, 2, xAction, (LPXLOPER12) & xIntType);
+     Excel12(xlCoerce, &xIntAction, 2, xAction, (LPXLOPER12) &xIntType);
 
      if (xIntAction.val.w == 1) {
           xInfo.xltype = xltypeStr;
-          xInfo.val.str = L"\025ExcelAddin Standalone DLL";
+          xInfo.val.str = L"\024Hash Keys XLL Add in";
      } else {
           xInfo.xltype = xltypeErr;
           xInfo.val.err = xlerrValue;
      }
 
      //Word of caution - returning static XLOPER12s/XLOPER12s is not thread safe
-     //for UDFs declared as thread safe, use alternate memory allocation mechanisms
+     //for UDFs declared as thread safe, use alternate memory allocation
+     //mechanisms
      return (LPXLOPER12) & xInfo;
-}
-
-///***************************************************************************
-// Func1()
-//
-// Purpose:
-//
-//      This is a typical user-defined function provided by an XLL.
-//
-// Parameters:
-//
-//      LPXLOPER12 x    (Ignored)
-//
-// Returns: 
-//
-//      LPXLOPER12      Always the string "Func1"
-//
-// Comments:
-//
-// History:  Date       Author        Reason
-///***************************************************************************
-
-LPXLOPER12 WINAPI Func1(LPXLOPER12 x)
-{
-     static XLOPER12 xResult;
-
-     //
-     // This function demonstrates returning a string value. The return
-     // type is set to a string and filled with the name of the function.
-     //
-
-     xResult.xltype = xltypeStr;
-     xResult.val.str = L"\005Func1";
-
-     //Word of caution - returning static XLOPER12s/XLOPER12s is not thread safe
-     //for UDFs declared as thread safe, use alternate memory allocation mechanisms
-     return (LPXLOPER12) & xResult;
 }
 
 ///***************************************************************************
@@ -499,20 +457,20 @@ LPXLOPER12 WINAPI Func1(LPXLOPER12 x)
 //
 // Purpose:
 //
-//      This is a user-initiated routine to exit HASHKEYS.XLL You may be tempted to
-//      simply call UNREGISTER("HASHKEYS.XLL") in this function. Don't do it! It
+//      This is a user-initiated routine to exit HASHKEYS.XLL You may be tempted
+//      to call UNREGISTER("HASHKEYS.XLL") in this function. Don't do it! It
 //      will have the effect of forcefully unregistering all of the functions in
-//      this DLL, even if they are registered somewhere else! Instead, unregister
-//      the functions one at a time.
+//      this DLL, even if they are registered somewhere else! Instead,
+//      unregister functions one at a time.
 //
 ///***************************************************************************
 
 __declspec(dllexport)
 int WINAPI fExit(void)
 {
-     XLOPER12 xDLL,				// The name of this DLL //
-          xFunc,				// The name of the function //
-          xRegId;			// The registration ID //
+     XLOPER12 xDLL;				// The name of this DLL //
+     LPXLOPER12 pxFunc;            // The name of the function //
+     XLOPER12 xRegId;			// The registration ID //
      int i;
 
      //
@@ -522,15 +480,12 @@ int WINAPI fExit(void)
      // frees the DLL name and calls xlAutoClose.
      //
 
-     // Make xFunc a string //
-     xFunc.xltype = xltypeStr;
-
      Excel12(xlGetName, &xDLL, 0);
 
      for (i = 0; i < FUNCTION_ROWS; i++) {
-          xFunc.val.str = (LPWSTR) (functions[i][0]);
-          Excel12(xlfRegisterId, &xRegId, 2, (LPXLOPER12) &xDLL,
-                  (LPXLOPER12) &xFunc);
+          pxFunc = byte_str12(functions[i][FUNCTION_PROC_COL]);
+          Excel12(xlfRegisterId, &xRegId, 2, (LPXLOPER12) &xDLL, pxFunc);
+          free(pxFunc);
           Excel12(xlfUnregister, 0, 1, (LPXLOPER12) &xRegId);
      }
 
@@ -594,7 +549,7 @@ uint32_t jenkins(char *key, size_t len)
      return hash;
 }
 
-signed long int WINAPI HashKeyLittle( char *key, signed long int initval)
+signed long int WINAPI HashKeyLittleEndian( char *key, signed long int initval)
 {
      size_t len;
 
@@ -623,7 +578,7 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
           const uint32_t *k = (const uint32_t *)key;  /* read 32-bit chunks */
           const uint8_t *k8;
 
-          /*------ all but last block: aligned reads and affect 32 bits of (a,b,c) */
+          /* all but last block: aligned reads and affect 32 bits of (a,b,c) */
           while (length > 12) {
                a += k[0];
                b += k[1];
@@ -633,7 +588,7 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
                k += 3;
           }
 
-          /*----------------------------- handle the last (probably partial) block */
+          /*------------------------ handle the last (probably partial) block */
           /* 
            * "k[2]&0xffffff" actually reads beyond the end of the string, but
            * then masks off the part it's not allowed to read.  Because the
@@ -643,7 +598,6 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
            * still catch it and complain.  The masking trick does make the hash
            * noticably faster for short strings (like English words).
            */
-
 
           switch (length) {
           case 12:
@@ -695,14 +649,14 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
                a += k[0] & 0xff;
                break;
           case 0:
-               return c;           /* zero length strings require no mixing */
+               return c;   /* zero length strings require no mixing */
           }
 
      } else if (HASH_LITTLE_ENDIAN && ((u.i & 0x1) == 0)) {
           const uint16_t *k = (const uint16_t *)key;  /* read 16-bit chunks */
           const uint8_t *k8;
 
-          /*--------------- all but last block: aligned reads and different mixing */
+          /*---------- all but last block: aligned reads and different mixing */
           while (length > 12) {
                a += k[0] + (((uint32_t)k[1]) << 16);
                b += k[2] + (((uint32_t)k[3]) << 16);
@@ -712,7 +666,7 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
                k += 6;
           }
 
-          /*----------------------------- handle the last (probably partial) block */
+          /*------------------------ handle the last (probably partial) block */
           k8 = (const uint8_t *)k;
           switch (length) {
           case 12:
@@ -721,31 +675,31 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
                a += k[0] + (((uint32_t)k[1]) << 16);
                break;
           case 11:
-               c += ((uint32_t)k8[10]) << 16;  /* fall through */
+               c += ((uint32_t)k8[10]) << 16; /* fall through */
           case 10:
                c += k[4];
                b += k[2] + (((uint32_t)k[3]) << 16);
                a += k[0] + (((uint32_t)k[1]) << 16);
                break;
           case 9:
-               c += k8[8];         /* fall through */
+               c += k8[8];      /* fall through */
           case 8:
                b += k[2] + (((uint32_t)k[3]) << 16);
                a += k[0] + (((uint32_t)k[1]) << 16);
                break;
           case 7:
-               b += ((uint32_t)k8[6]) << 16;   /* fall through */
+               b += ((uint32_t)k8[6]) << 16; /* fall through */
           case 6:
                b += k[2];
                a += k[0] + (((uint32_t)k[1]) << 16);
                break;
           case 5:
-               b += k8[4];         /* fall through */
+               b += k8[4];      /* fall through */
           case 4:
                a += k[0] + (((uint32_t)k[1]) << 16);
                break;
           case 3:
-               a += ((uint32_t)k8[2]) << 16;   /* fall through */
+               a += ((uint32_t)k8[2]) << 16; /* fall through */
           case 2:
                a += k[0];
                break;
@@ -753,13 +707,13 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
                a += k8[0];
                break;
           case 0:
-               return c;           /* zero length requires no mixing */
+               return c;        /* zero length requires no mixing */
           }
 
-     } else {                    /* need to read the key one byte at a time */
+     } else {            /* need to read the key one byte at a time */
           const uint8_t *k = (const uint8_t *)key;
 
-          /*--------------- all but the last block: affect some 32 bits of (a,b,c) */
+          /*---------- all but the last block: affect some 32 bits of (a,b,c) */
           while (length > 12) {
                a += k[0];
                a += ((uint32_t)k[1]) << 8;
@@ -778,8 +732,8 @@ uint32_t hashlittle(const void *key, size_t length, uint32_t initval)
                k += 12;
           }
 
-          /*-------------------------------- last block: affect all 32 bits of (c) */
-          switch (length) {       /* all the case statements fall through */
+          /*--------------------------- last block: affect all 32 bits of (c) */
+          switch (length) { /* all the case statements fall through */
           case 12:
                c += ((uint32_t)k[11]) << 24;
           case 11:
